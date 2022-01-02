@@ -1,48 +1,132 @@
 #!/opt/homebrew/bin/bash
 
-# Usage: sudo ./docker-update-hos.sh /etc/hosts
-
-
-# Retrieve the argument and create a name for a tmp file
+#============================================================================================
+#   FILE:           docker-update-hosts.sh
+#   USAGE:          ./docker-update-hosts.sh --address 127.0.0.1 --hosts /etc/hosts --verbose
+#   DESCRIPTION:    Updates the /etc/hosts file with all running docker services. It listen
+#                   the docker start event to add new entries to hosts file, while remove it
+#                   when the stop event is fired.
 #
-declare processfile=$1
-declare tmpfile=${1}.tmp
-declare -A services
+#   AUTHOR:         Renato Rodrigues, spamcares-github@yahoo.com
+#   VERSION:        1.0
+#============================================================================================
 
-event () {
+# shows the script usage
+function usage() {
+    # shows the error
+    if [ -n "$1" ]; then
+        echo -e "[WARN][$(date +"%Y-%m-%d %T")] ${RED}👉 $1${CLEAR}\n";
+    fi
+
+    # prints the usage
+    echo "Usage: $0 [-a|--address] [-h|--host] [-v|--verbose] [-q|quiet]"
+    echo "  -a, --address            ip addres"
+    echo "  -h, --hosts              hosts file path"
+    echo "  -v, --verbose            verbose output"
+    echo "  -q, --quiet              executes quietelly without any changes and prints the result"
+    echo ""
+    echo "Eg.:    $0 --address 127.0.0.1 --hosts /etc/hosts --verbose"
+    echo "        $0 -a 127.0.0.1 -h /etc/hosts -q -v"
+    exit 1
+}
+
+# process start/stop Docker events
+function processEvent() {
     
-    local timestamp=$1
-    local event_type=$3
-    local container_id=$4
+    local timestamp=$1      # event timestamp
+    local event_type=$3     # event type
+    local container_id=$4   # container id
+
+    verbose "Event Timestamp: $timestamp    Event Type: $event_type     Container Id: $container_id"
     
+    # creates the key with 8 char from container id
     local key="ID$( echo $container_id | cut -c1-8)"
 
-    if [ $event_type = "start" ];
-    then
-        local servicename=`docker inspect --format '{{ .Name }}' $container_id `
-        local ipaddress=`docker inspect --format '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $container_id`
+    # process start event
+    if [ $event_type = "start" ]; then
 
+        # inspect the container and extract the service name
+        local service_name=`docker inspect --format '{{ .Name }}' $container_id `
+
+        verbose "Service key: $key  Service Name: $service_name"
+        
+        # check if the service key not exists
         if ! [ ${services["$key"]+_} ]; then
-            services+=(["$key"]=${servicename:1} )
-            echo "inserting entry 127.0.0.1 ${services["$key"]}"
-            grep -v ${services["$key"]} $processfile > $tmpfile
-            echo '127.0.0.1' ${services["$key"]}  >> $tmpfile
-            mv $tmpfile $processfile
+            # adds the service name in the map
+            services+=(["$key"]=${service_name:1} )
+            
+            if ! [ $QUIET -eq 0 ]; then
+
+                # grep the inverted match (line) and save to the temp file
+                grep -v ${services["$key"]} $processfile > $tmpfile
+                
+                # append the IP_ADDRESS and service name to $HOSTS
+                echo ${IP_ADDRESS} ${services["$key"]}  >> $tmpfile
+
+                # override the original file
+                mv $tmpfile $processfile
+            fi
+
+            echo "[INFO][$(date +"%Y-%m-%d %T")] Appended line in the file '${processfile}':    ${IP_ADDRESS}   ${services["$key"]}"
         fi
     fi
 
-    if [ $event_type = "stop" ];
-    then
+    # process start event
+    if [ $event_type = "stop" ]; then
+        
+        # check if the service key exists
         if [ ${services["$key"]+_} ]; then
-            echo "stoping service: ${services["$key"]}"
-            grep -v ${services["$key"]} $processfile > $tmpfile
+
+            if ! [ $QUIET -eq 0 ]; then
+                # grep the inverted match (line) and save to the temp file
+                grep -v ${services["$key"]} $processfile > $tmpfile
+
+                # override the original file
+                mv $tmpfile $processfile
+            fi
+            
+            echo "[INFO][$(date +"%Y-%m-%d %T")] Removed line from the file '${processfile}':    ${IP_ADDRESS}   ${services["$key"]}"
+
+            #removes the key from map
             unset services["$key"]
-            mv $tmpfile $processfile
         fi
     fi
 }
 
+# verbose output
+function verbose () {
+    if [[ $VERBOSE -eq 1 ]]; then
+        echo "[DEBUG][$(date +"%Y-%m-%d %T")] $@"
+    fi
+}
+
+QUIET=0
+# parse params
+while [[ "$#" > 0 ]]; do case $1 in
+  -a|--address) IP_ADDRESS="$2"; shift;shift;;
+  -h|--hosts) HOSTS="$2";shift;shift;;
+  -v|--verbose) VERBOSE=1;shift;;
+  -q|--quiet) QUIET=1;shift;;
+  *) usage "[ERROR][$(date +"%Y-%m-%d %T")] Unknown parameter: $1"; shift; shift;;
+esac; done
+
+# validate input parameters
+if [ -z "$IP_ADDRESS" ];    then usage "[ERROR][$(date +"%Y-%m-%d %T")] IP Address not set";        fi;
+if [ -z "$HOSTS" ];         then usage "[ERROR][$(date +"%Y-%m-%d %T")] Hosts file path not set.";  fi;
+
+# formating colors
+declare CLEAR='\033[0m'
+declare RED='\033[0;31m'
+
+declare processfile=${HOSTS}            # file to be processed (hosts file)
+declare tmpfile=${processfile}.tmp      # create a temp file for processing
+declare -A services                     # map of services (docker service name). Eg. services[key]=value
+
+verbose "Processing file: $processfile  Temp file: $tmpfile     Address: $IP_ADDRESS    Quite Mode: ${QUIET}"
+
+# lookup the docker start/stop events
 docker events --filter 'event=start' --filter 'event=stop' | while read event
 do
-    event $event
+    # process Docker event
+    processEvent $event
 done;
