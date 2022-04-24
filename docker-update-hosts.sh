@@ -55,7 +55,7 @@ function processEvent() {
             # adds the service name in the map
             services+=(["$key"]=${service_name:1} )
             
-            if ! [ $QUIET -eq 0 ]; then
+            if [ $QUIET = "0" ]; then
 
                 # grep the inverted match (line) and save to the temp file
                 grep -v ${services["$key"]} $processfile > $tmpfile
@@ -65,6 +65,7 @@ function processEvent() {
 
                 # override the original file
                 mv $tmpfile $processfile
+                echo "START--------------------------->>"
             fi
 
             echo "[INFO][$(date +"%Y-%m-%d %T")] Appended line in the file '${processfile}':    ${IP_ADDRESS}   ${services["$key"]}"
@@ -77,12 +78,14 @@ function processEvent() {
         # check if the service key exists
         if [ ${services["$key"]+_} ]; then
 
-            if ! [ $QUIET -eq 0 ]; then
+            if [ $QUIET = "0" ]; then
                 # grep the inverted match (line) and save to the temp file
                 grep -v ${services["$key"]} $processfile > $tmpfile
 
                 # override the original file
                 mv $tmpfile $processfile
+
+                echo "STOP--------------------------->>"
             fi
             
             echo "[INFO][$(date +"%Y-%m-%d %T")] Removed line from the file '${processfile}':    ${IP_ADDRESS}   ${services["$key"]}"
@@ -100,13 +103,13 @@ function verbose () {
     fi
 }
 
-QUIET=0
+QUIET="0"
 # parse params
 while [[ "$#" > 0 ]]; do case $1 in
   -a|--address) IP_ADDRESS="$2"; shift;shift;;
   -h|--hosts) HOSTS="$2";shift;shift;;
   -v|--verbose) VERBOSE=1;shift;;
-  -q|--quiet) QUIET=1;shift;;
+  -q|--quiet) QUIET="1";shift;;
   *) usage "[ERROR][$(date +"%Y-%m-%d %T")] Unknown parameter: $1"; shift; shift;;
 esac; done
 
