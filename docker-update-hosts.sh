@@ -122,7 +122,7 @@ declare processfile=${HOSTS}            # file to be processed (hosts file)
 declare tmpfile=${processfile}.tmp      # create a temp file for processing
 declare -A services                     # map of services (docker service name). Eg. services[key]=value
 
-verbose "Processing file: $processfile  Temp file: $tmpfile     Address: $IP_ADDRESS    Quite Mode: ${QUIET}"
+verbose "Processing file: $processfile  Temp file: $tmpfile     Address: $IP_ADDRESS    Quiet Mode: ${QUIET}"
 
 # lookup the docker start/stop events
 docker events --filter 'event=start' --filter 'event=stop' | while read event
