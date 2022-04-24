@@ -65,7 +65,6 @@ function processEvent() {
 
                 # override the original file
                 mv $tmpfile $processfile
-                echo "START--------------------------->>"
             fi
 
             echo "[INFO][$(date +"%Y-%m-%d %T")] Appended line in the file '${processfile}':    ${IP_ADDRESS}   ${services["$key"]}"
@@ -84,8 +83,6 @@ function processEvent() {
 
                 # override the original file
                 mv $tmpfile $processfile
-
-                echo "STOP--------------------------->>"
             fi
             
             echo "[INFO][$(date +"%Y-%m-%d %T")] Removed line from the file '${processfile}':    ${IP_ADDRESS}   ${services["$key"]}"
