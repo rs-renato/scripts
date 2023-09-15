@@ -46,12 +46,12 @@ function processEvent() {
 
         # inspect the container and extract the service name
         local service_name=`docker inspect --format '{{ .Name }}' $container_id `
-        local ip_addr=`docker inspect --format '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $container_id `
+        local ip_only=`docker inspect --format '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $container_id `
+        local ip_addr=`docker inspect --format '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{"\t"}}{{index .Aliases 1}}{{end}}' $container_id `
 
         verbose "Service key: $key  Service Name: $service_name ip: $ip_addr"
-        
         # check if the service key not exists
-        if ! [ ${services["$key"]+_} ]; then
+        if ! [ ${services["$key"]+_} ] && ! [ -z "$ip_only" ]; then
             # adds the service name in the map
             services+=(["$key"]=${service_name:1} )
             
@@ -100,6 +100,7 @@ function verbose () {
     fi
 }
 
+HOSTS=/etc/hosts
 QUIET="0"
 # parse params
 while [[ "$#" > 0 ]]; do case $1 in
