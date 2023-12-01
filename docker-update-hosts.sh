@@ -51,7 +51,7 @@ function processEvent() {
 
         verbose "Service key: $key  Service Name: $service_name ip: $ip_addr"
         # check if the service key not exists
-        if ! [ ${services["$key"]+_} ] && ! [ -z "$ip_only" ]; then
+        if ! [ ${services["$key"]+_} ] && ! [ -z "$ip_only" ] && ! [ -z "$ip_addr" ]; then
             # adds the service name in the map
             services+=(["$key"]=${service_name:1} )
             
@@ -61,7 +61,7 @@ function processEvent() {
                 grep -v ${services["$key"]} $processfile > $tmpfile
                 
                 # append the IP_ADDRESS and service name to $HOSTS
-                echo ${ip_addr} ${services["$key"]}  >> $tmpfile
+                echo ${ip_addr} >> $tmpfile
 
                 # override the original file
                 mv $tmpfile $processfile
